@@ -481,15 +481,7 @@ idleTextArea.addEventListener('wheel',e=>{
   if(steps!==0){wheelAccum-=steps*60;idx=Math.max(0,Math.min(idx+steps,words.length-1));highlightIdleWord(idx);}
   clearTimeout(wheelTimer);wheelTimer=setTimeout(()=>{wheelAccum=0;},200);
 },{passive:false});
-let tScrollY=null,tScrollAccum=0;
-idleTextArea.addEventListener('touchstart',e=>{if(e.target.closest('#taskbar'))return;tScrollY=e.touches[0].clientY;tScrollAccum=0;},{passive:true});
-idleTextArea.addEventListener('touchmove',e=>{
-  if(tScrollY===null)return;e.preventDefault();
-  const dy=tScrollY-e.touches[0].clientY;tScrollAccum+=dy;tScrollY=e.touches[0].clientY;
-  const steps=Math.trunc(tScrollAccum/28);
-  if(steps!==0){tScrollAccum-=steps*28;idx=Math.max(0,Math.min(idx+steps,words.length-1));highlightIdleWord(idx);}
-},{passive:false});
-idleTextArea.addEventListener('touchend',()=>{tScrollY=null;tScrollAccum=0;});
+let tScrollY=null,tScrollAccum=0,tScrolling=false;
 
 // ── RSVP ──
 function positionRSVP(word){
@@ -537,15 +529,91 @@ document.addEventListener('mousedown',e=>{
 document.addEventListener('mousemove',e=>{if(holding)updateNudge(e.clientX);});
 document.addEventListener('mouseup',()=>{if(locked)return;if(!holding)return;stopHold();});
 document.addEventListener('mouseleave',()=>{if(locked)return;if(!holding)return;stopHold();});
+// Touch intent detection:
+// We wait to see if the finger moves vertically (scroll) before committing to hold-to-read.
+// A vertical move of >8px cancels the hold. Horizontal move or stillness for >150ms confirms hold.
+let touchStartX=null, touchStartY=null, holdIntentTimer=null;
+
+function cancelHoldIntent(){
+  clearTimeout(holdIntentTimer);holdIntentTimer=null;
+  touchStartX=null;touchStartY=null;
+}
+
 document.addEventListener('touchstart',e=>{
   if(e.target.closest('#taskbar')||e.target.closest('.modal-overlay')||e.target.closest('#library-screen'))return;
+
+  const tx=e.touches[0].clientX, ty=e.touches[0].clientY;
+
+  // double-tap detection
   const now=Date.now();const gap=now-lastTouchTime;lastTouchTime=now;
-  if(gap<DTAP){lastTouchTime=0;e.preventDefault();if(locked){exitLock();}else{stopHold();enterLock();}return;}
-  if(locked)return;startHold(e.touches[0].clientX);
+  if(gap<DTAP){
+    lastTouchTime=0;cancelHoldIntent();
+    e.preventDefault();
+    if(locked){exitLock();}else{stopHold();enterLock();}
+    return;
+  }
+
+  if(locked)return;
+
+  // record touch start for intent detection
+  touchStartX=tx;touchStartY=ty;
+  tScrollY=ty;tScrollAccum=0;tScrolling=false;
+
+  // after 150ms of no significant vertical movement, commit to hold-to-read
+  holdIntentTimer=setTimeout(()=>{
+    holdIntentTimer=null;
+    if(tScrolling)return; // user was scrolling — don't start hold
+    touchStartX=null;touchStartY=null;
+    startHold(tx);
+  },150);
+
 },{passive:false});
-document.addEventListener('touchmove',e=>{if(holding)updateNudge(e.touches[0].clientX);},{passive:true});
-document.addEventListener('touchend',()=>{if(locked)return;if(!holding)return;stopHold();});
-document.addEventListener('touchcancel',()=>{if(locked)return;if(!holding)return;stopHold();});
+
+document.addEventListener('touchmove',e=>{
+  if(e.target.closest('#taskbar')||e.target.closest('.modal-overlay')||e.target.closest('#library-screen'))return;
+
+  const tx=e.touches[0].clientX, ty=e.touches[0].clientY;
+
+  // if already in hold mode, handle speed nudge
+  if(holding){updateNudge(tx);return;}
+
+  // if locked, ignore
+  if(locked)return;
+
+  // intent detection phase — check if scroll or hold
+  if(touchStartY!==null&&holdIntentTimer!==null){
+    const dy=Math.abs(ty-touchStartY);
+    const dx=Math.abs(tx-touchStartX);
+    if(dy>8&&dy>dx){
+      // clear vertical move — this is a scroll, cancel hold intent
+      tScrolling=true;
+      clearTimeout(holdIntentTimer);holdIntentTimer=null;
+    }
+  }
+
+  // handle scroll word navigation
+  if(tScrolling&&tScrollY!==null){
+    e.preventDefault();
+    const dy=tScrollY-ty;tScrollAccum+=dy;tScrollY=ty;
+    const steps=Math.trunc(tScrollAccum/28);
+    if(steps!==0){tScrollAccum-=steps*28;idx=Math.max(0,Math.min(idx+steps,words.length-1));highlightIdleWord(idx);}
+  }
+},{passive:false});
+
+document.addEventListener('touchend',()=>{
+  cancelHoldIntent();
+  tScrollY=null;tScrollAccum=0;tScrolling=false;
+  if(locked)return;
+  if(!holding)return;
+  stopHold();
+});
+document.addEventListener('touchcancel',()=>{
+  cancelHoldIntent();
+  tScrollY=null;tScrollAccum=0;tScrolling=false;
+  if(locked)return;
+  if(!holding)return;
+  stopHold();
+});
 
 // ── Controls ──
 wpmSlider.addEventListener('input',e=>{e.stopPropagation();const v=parseInt(wpmSlider.value);currentWpm=v;wpmOut.textContent=v+' wpm';saveSettings();});
