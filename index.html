@@ -1,114 +1,163 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-<meta name="apple-mobile-web-app-capable" content="yes" />
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-<meta name="apple-mobile-web-app-title" content="SpeedRead" />
-<meta name="theme-color" content="#2b2b2b" />
-<link rel="manifest" href="manifest.json" />
-<link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="SpeedRead"/>
+<meta name="theme-color" content="#2b2b2b"/>
+<link rel="manifest" href="manifest.json"/>
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png"/>
 <title>Speed Reader</title>
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; }
-  :root { --accent: #c45e00; }
-  html, body { width: 100%; height: 100%; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+* { box-sizing:border-box; margin:0; padding:0; user-select:none; -webkit-user-select:none; -webkit-tap-highlight-color:transparent; }
+:root { --accent:#c45e00; }
+html,body { width:100%; height:100%; overflow:hidden; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; }
 
-  #idle-screen { position: fixed; inset: 0; display: flex; flex-direction: column; opacity: 1; transition: opacity 0.6s; z-index: 10; }
-  #idle-screen.hidden { opacity: 0; pointer-events: none; }
-  #progress-bar-wrap { height: 4px; width: 100%; flex-shrink: 0; background: rgba(128,128,128,0.2); }
-  #progress-bar-fill { height: 100%; width: 0%; background: var(--accent); transition: width 0.3s; }
-  #idle-text-area { flex: 1; overflow: hidden; padding: 1.4rem 1.1rem 1rem; font-family: 'Courier New', Courier, monospace; font-size: 16px; line-height: 1.9; word-break: break-word; position: relative; }
-  #idle-text-inner { position: absolute; left: 1.1rem; right: 1.1rem; transition: transform 0.18s cubic-bezier(0.25,0.46,0.45,0.94); }
-  .idle-word { display: inline; opacity: 0.22; transition: opacity 0.12s; position: relative; }
-  .idle-word.current { opacity: 1; }
-  .idle-word.bookmarked::after { content: ''; position: absolute; top: -3px; left: 50%; transform: translateX(-50%); width: 5px; height: 5px; border-radius: 50%; background: var(--accent); opacity: 0.9; }
+/* ── READER ── */
+#reader { position:fixed; inset:0; display:flex; flex-direction:column; opacity:1; transition:opacity 0.4s; z-index:10; }
+#reader.hidden { opacity:0; pointer-events:none; }
+#progress-bar-wrap { height:4px; width:100%; flex-shrink:0; background:rgba(128,128,128,0.2); position:relative; }
+#progress-bar-fill { height:100%; width:0%; background:var(--accent); transition:width 0.3s; }
+#chapter-label { position:absolute; right:6px; top:6px; font-size:9px; opacity:0.45; font-family:-apple-system,sans-serif; pointer-events:none; }
+#idle-text-area { flex:1; overflow:hidden; padding:1.4rem 1.1rem 1rem; font-family:'Courier New',Courier,monospace; font-size:16px; line-height:1.9; word-break:break-word; position:relative; }
+#idle-text-inner { position:absolute; left:1.1rem; right:1.1rem; transition:transform 0.18s cubic-bezier(0.25,0.46,0.45,0.94); }
+.idle-word { display:inline; opacity:0.22; transition:opacity 0.12s; position:relative; }
+.idle-word.current { opacity:1; }
+.idle-word.bookmarked::after { content:''; position:absolute; top:-3px; left:50%; transform:translateX(-50%); width:5px; height:5px; border-radius:50%; background:var(--accent); opacity:0.9; }
+.idle-word.chapter-start { border-left:2px solid var(--accent); margin-left:2px; padding-left:3px; opacity:0.5; }
 
-  #taskbar { flex-shrink: 0; padding: 10px 14px env(safe-area-inset-bottom,10px); border-top: 0.5px solid rgba(128,128,128,0.3); display: flex; flex-direction: column; gap: 8px; }
-  .tb-row { display: flex; align-items: center; gap: 8px; }
-  .tb-label { font-size: 11px; min-width: 66px; opacity: 0.55; }
-  .tb-val { font-size: 11px; min-width: 44px; font-weight: 600; text-align: right; }
-  input[type="range"] { flex: 1; accent-color: var(--accent); cursor: pointer; }
-  .swatches { display: flex; gap: 6px; align-items: center; }
-  .swatch { width: 22px; height: 22px; border-radius: 50%; cursor: pointer; border: 2.5px solid transparent; transition: border-color 0.2s, transform 0.15s; flex-shrink: 0; }
-  .swatch:active { transform: scale(1.15); }
-  .swatch.active { border-color: var(--accent); }
-  .swatch-black { background: #0a0a0a; box-shadow: inset 0 0 0 0.5px #444; }
-  .swatch-charcoal { background: #2b2b2b; }
-  .swatch-parchment { background: #f5f0e8; box-shadow: inset 0 0 0 0.5px #c8b89a; }
-  .swatch-white { background: #ffffff; box-shadow: inset 0 0 0 0.5px #bbb; }
-  .toggles { display: flex; gap: 12px; flex-wrap: wrap; }
-  .tog-label { display: flex; align-items: center; gap: 4px; font-size: 11px; opacity: 0.7; cursor: pointer; }
-  input[type="checkbox"] { accent-color: var(--accent); width: 13px; height: 13px; cursor: pointer; }
-  .tb-btn-row { display: flex; gap: 8px; }
-  .tb-btn { flex: 1; padding: 7px 10px; border-radius: 8px; border: 0.5px solid rgba(128,128,128,0.35); background: transparent; font-size: 12px; font-weight: 500; cursor: pointer; transition: opacity 0.2s; text-align: center; }
-  .tb-btn:active { opacity: 0.6; }
-  .tb-btn.accent { border-color: var(--accent); color: var(--accent) !important; }
-  .hint { font-size: 10px; text-align: center; opacity: 0.35; padding-bottom: 2px; }
-  #bookmark-nav { display: none; align-items: center; gap: 6px; flex-wrap: wrap; }
-  #bookmark-nav.visible { display: flex; }
-  .bm-chip { font-size: 10px; padding: 3px 8px; border-radius: 10px; background: var(--accent); color: #fff; cursor: pointer; opacity: 0.85; display: flex; align-items: center; gap: 4px; }
-  .bm-chip:active { opacity: 0.6; }
-  .bm-x { font-size: 11px; opacity: 0.7; margin-left: 2px; }
-  #bm-label { font-size: 11px; opacity: 0.45; }
+/* ── TASKBAR ── */
+#taskbar { flex-shrink:0; padding:10px 14px env(safe-area-inset-bottom,10px); border-top:0.5px solid rgba(128,128,128,0.3); display:flex; flex-direction:column; gap:8px; }
+.tb-row { display:flex; align-items:center; gap:8px; }
+.tb-label { font-size:11px; min-width:66px; opacity:0.55; }
+.tb-val { font-size:11px; min-width:44px; font-weight:600; text-align:right; }
+input[type="range"] { flex:1; accent-color:var(--accent); cursor:pointer; }
+.swatches { display:flex; gap:6px; align-items:center; }
+.swatch { width:22px; height:22px; border-radius:50%; cursor:pointer; border:2.5px solid transparent; transition:border-color 0.2s,transform 0.15s; flex-shrink:0; }
+.swatch:active { transform:scale(1.15); }
+.swatch.active { border-color:var(--accent); }
+.swatch-black { background:#0a0a0a; box-shadow:inset 0 0 0 0.5px #444; }
+.swatch-charcoal { background:#2b2b2b; }
+.swatch-parchment { background:#f5f0e8; box-shadow:inset 0 0 0 0.5px #c8b89a; }
+.swatch-white { background:#ffffff; box-shadow:inset 0 0 0 0.5px #bbb; }
+.toggles { display:flex; gap:12px; flex-wrap:wrap; }
+.tog-label { display:flex; align-items:center; gap:4px; font-size:11px; opacity:0.7; cursor:pointer; }
+input[type="checkbox"] { accent-color:var(--accent); width:13px; height:13px; cursor:pointer; }
+.tb-btn-row { display:flex; gap:6px; }
+.tb-btn { flex:1; padding:7px 8px; border-radius:8px; border:0.5px solid rgba(128,128,128,0.35); background:transparent; font-size:11px; font-weight:500; cursor:pointer; transition:opacity 0.2s; text-align:center; }
+.tb-btn:active { opacity:0.6; }
+.tb-btn.accent { border-color:var(--accent); color:var(--accent)!important; }
+.hint { font-size:10px; text-align:center; opacity:0.35; padding-bottom:2px; }
+#bookmark-nav { display:none; align-items:center; gap:6px; flex-wrap:wrap; }
+#bookmark-nav.visible { display:flex; }
+#chapter-nav { display:none; align-items:center; gap:6px; flex-wrap:wrap; }
+#chapter-nav.visible { display:flex; }
+.bm-chip { font-size:10px; padding:3px 8px; border-radius:10px; background:var(--accent); color:#fff; cursor:pointer; opacity:0.85; display:flex; align-items:center; gap:4px; }
+.bm-chip:active { opacity:0.6; }
+.ch-chip { font-size:10px; padding:3px 8px; border-radius:10px; border:0.5px solid var(--accent); color:var(--accent); cursor:pointer; opacity:0.85; }
+.ch-chip:active { opacity:0.6; }
+.bm-x { font-size:11px; opacity:0.7; margin-left:2px; }
+.nav-label { font-size:11px; opacity:0.45; }
 
-  #toast { position: fixed; bottom: 120px; left: 50%; transform: translateX(-50%); background: var(--accent); color: #fff; font-size: 12px; font-weight: 500; padding: 7px 16px; border-radius: 20px; opacity: 0; transition: opacity 0.3s; z-index: 100; pointer-events: none; white-space: nowrap; }
-  #toast.show { opacity: 1; }
+/* ── ACTIVE RSVP ── */
+#active-screen { position:fixed; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; opacity:0; pointer-events:none; transition:opacity 0.6s; z-index:20; }
+#active-screen.visible { opacity:1; }
+#lock-indicator { position:absolute; top:env(safe-area-inset-top,18px); margin-top:8px; display:flex; align-items:center; gap:6px; padding:5px 13px; border-radius:20px; font-size:11px; font-weight:500; opacity:0; transition:opacity 0.4s; pointer-events:none; border:0.5px solid; }
+#lock-indicator.visible { opacity:0.55; }
+#lock-dot { width:6px; height:6px; border-radius:50%; background:var(--accent); animation:pulse 1.8s ease-in-out infinite; }
+@keyframes pulse { 0%,100%{opacity:1;}50%{opacity:0.3;} }
+#speed-hud { position:absolute; bottom:env(safe-area-inset-bottom,28px); margin-bottom:8px; display:flex; align-items:center; gap:8px; opacity:0; transition:opacity 0.25s; pointer-events:none; }
+#speed-hud.visible { opacity:0.75; }
+#speed-arrow { font-size:18px; min-width:20px; text-align:center; }
+#speed-hud-val { font-size:14px; font-weight:600; }
+#rsvp-box { width:92%; max-width:520px; display:flex; flex-direction:column; align-items:center; position:relative; }
+.rsvp-guide { width:100%; height:1px; opacity:0.3; }
+#rsvp-tick-top,#rsvp-tick-bot { position:absolute; width:1px; opacity:0.38; }
+#rsvp-tick-top { height:10px; top:1px; }
+#rsvp-tick-bot { height:10px; bottom:1px; }
+#rsvp-word-wrap { height:80px; width:100%; position:relative; display:flex; align-items:center; overflow:hidden; }
+#rsvp-word-inner { position:absolute; display:flex; align-items:center; white-space:nowrap; font-family:'Courier New',Courier,monospace; font-size:42px; font-weight:500; }
 
-  #active-screen { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.6s; z-index: 20; }
-  #active-screen.visible { opacity: 1; }
-  #lock-indicator { position: absolute; top: env(safe-area-inset-top, 18px); display: flex; align-items: center; gap: 6px; padding: 5px 13px; border-radius: 20px; font-size: 11px; font-weight: 500; letter-spacing: 0.03em; opacity: 0; transition: opacity 0.4s; pointer-events: none; border: 0.5px solid; margin-top: 8px; }
-  #lock-indicator.visible { opacity: 0.55; }
-  #lock-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: pulse 1.8s ease-in-out infinite; }
-  @keyframes pulse { 0%,100%{opacity:1;}50%{opacity:0.3;} }
-  #speed-hud { position: absolute; bottom: env(safe-area-inset-bottom, 28px); margin-bottom: 8px; display: flex; align-items: center; gap: 8px; opacity: 0; transition: opacity 0.25s; pointer-events: none; }
-  #speed-hud.visible { opacity: 0.75; }
-  #speed-arrow { font-size: 18px; min-width: 20px; text-align: center; }
-  #speed-hud-val { font-size: 14px; font-weight: 600; letter-spacing: 0.02em; }
-  #rsvp-box { width: 92%; max-width: 520px; display: flex; flex-direction: column; align-items: center; position: relative; }
-  .rsvp-guide { width: 100%; height: 1px; opacity: 0.3; }
-  #rsvp-tick-top, #rsvp-tick-bot { position: absolute; width: 1px; opacity: 0.38; }
-  #rsvp-tick-top { height: 10px; top: 1px; }
-  #rsvp-tick-bot { height: 10px; bottom: 1px; }
-  #rsvp-word-wrap { height: 80px; width: 100%; position: relative; display: flex; align-items: center; overflow: hidden; }
-  #rsvp-word-inner { position: absolute; display: flex; align-items: center; white-space: nowrap; font-family: 'Courier New', Courier, monospace; font-size: 42px; font-weight: 500; }
+/* ── LIBRARY SCREEN ── */
+#library-screen { position:fixed; inset:0; display:flex; flex-direction:column; opacity:0; pointer-events:none; transition:opacity 0.4s; z-index:30; }
+#library-screen.visible { opacity:1; pointer-events:all; }
+#lib-header { flex-shrink:0; padding:env(safe-area-inset-top,16px) 16px 0; display:flex; align-items:center; justify-content:space-between; padding-bottom:12px; border-bottom:0.5px solid rgba(128,128,128,0.2); }
+#lib-header h2 { font-size:18px; font-weight:600; }
+#lib-close { font-size:14px; padding:6px 14px; border-radius:8px; border:0.5px solid rgba(128,128,128,0.35); background:transparent; cursor:pointer; font-weight:500; }
+#lib-tabs { display:flex; flex-shrink:0; border-bottom:0.5px solid rgba(128,128,128,0.2); }
+.lib-tab { flex:1; padding:10px; text-align:center; font-size:12px; font-weight:500; opacity:0.45; cursor:pointer; border-bottom:2px solid transparent; transition:opacity 0.2s,border-color 0.2s; }
+.lib-tab.active { opacity:1; border-bottom-color:var(--accent); }
+#lib-body { flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:12px 14px env(safe-area-inset-bottom,12px); }
+#lib-add-row { display:flex; gap:8px; margin-bottom:12px; }
+.lib-add-btn { flex:1; padding:10px; border-radius:10px; border:0.5px solid rgba(128,128,128,0.35); background:transparent; font-size:12px; font-weight:500; cursor:pointer; }
+.lib-add-btn:active { opacity:0.6; }
+.lib-card { border-radius:12px; border:0.5px solid rgba(128,128,128,0.25); padding:12px 14px; margin-bottom:10px; cursor:pointer; position:relative; }
+.lib-card:active { opacity:0.7; }
+.lib-card.active-text { border-color:var(--accent); }
+.lib-card-title { font-size:14px; font-weight:600; margin-bottom:4px; padding-right:28px; }
+.lib-card-meta { font-size:11px; opacity:0.5; display:flex; gap:10px; flex-wrap:wrap; }
+.lib-card-progress { height:3px; background:rgba(128,128,128,0.2); border-radius:2px; margin-top:8px; }
+.lib-card-progress-fill { height:100%; background:var(--accent); border-radius:2px; }
+.lib-card-del { position:absolute; top:10px; right:10px; width:22px; height:22px; border-radius:50%; border:0.5px solid rgba(128,128,128,0.35); background:transparent; font-size:13px; cursor:pointer; display:flex; align-items:center; justify-content:center; opacity:0.5; }
+.lib-card-del:active { opacity:1; }
+.lib-empty { text-align:center; opacity:0.35; font-size:13px; padding:40px 20px; line-height:1.6; }
 
-  #paste-modal { display: none; position: fixed; inset: 0; z-index: 50; align-items: flex-end; justify-content: center; background: rgba(0,0,0,0.5); }
-  #paste-modal.open { display: flex; }
-  #paste-inner { width: 100%; max-width: 600px; border-radius: 16px 16px 0 0; padding: 16px 16px env(safe-area-inset-bottom,16px); display: flex; flex-direction: column; gap: 10px; }
-  #paste-inner h3 { font-size: 15px; font-weight: 600; }
-  #paste-textarea { width: 100%; height: 180px; border-radius: 10px; border: 0.5px solid rgba(128,128,128,0.3); background: transparent; padding: 10px 12px; font-family: 'Courier New', Courier, monospace; font-size: 14px; resize: none; user-select: text; -webkit-user-select: text; }
-  .modal-btn-row { display: flex; gap: 8px; }
-  .modal-btn { flex: 1; padding: 10px; border-radius: 10px; border: none; font-size: 14px; font-weight: 600; cursor: pointer; }
-  .modal-btn.primary { background: var(--accent); color: #fff; }
-  .modal-btn.cancel { background: rgba(128,128,128,0.15); }
+/* history */
+.hist-card { border-radius:10px; border:0.5px solid rgba(128,128,128,0.2); padding:10px 12px; margin-bottom:8px; }
+.hist-title { font-size:13px; font-weight:500; margin-bottom:3px; }
+.hist-meta { font-size:11px; opacity:0.45; display:flex; gap:10px; flex-wrap:wrap; }
+
+/* ── MODALS ── */
+.modal-overlay { display:none; position:fixed; inset:0; z-index:60; align-items:flex-end; justify-content:center; background:rgba(0,0,0,0.5); }
+.modal-overlay.open { display:flex; }
+.modal-sheet { width:100%; max-width:600px; border-radius:16px 16px 0 0; padding:16px 16px env(safe-area-inset-bottom,16px); display:flex; flex-direction:column; gap:10px; }
+.modal-sheet h3 { font-size:15px; font-weight:600; }
+.modal-input { width:100%; border-radius:10px; border:0.5px solid rgba(128,128,128,0.3); background:transparent; padding:10px 12px; font-family:-apple-system,sans-serif; font-size:14px; }
+.modal-textarea { width:100%; height:160px; border-radius:10px; border:0.5px solid rgba(128,128,128,0.3); background:transparent; padding:10px 12px; font-family:'Courier New',Courier,monospace; font-size:14px; resize:none; user-select:text; -webkit-user-select:text; }
+.modal-input:focus,.modal-textarea:focus { outline:none; border-color:var(--accent); }
+.modal-btn-row { display:flex; gap:8px; }
+.modal-btn { flex:1; padding:10px; border-radius:10px; border:none; font-size:14px; font-weight:600; cursor:pointer; }
+.modal-btn.primary { background:var(--accent); color:#fff; }
+.modal-btn.cancel { background:rgba(128,128,128,0.15); }
+
+/* toast */
+#toast { position:fixed; bottom:120px; left:50%; transform:translateX(-50%); background:var(--accent); color:#fff; font-size:12px; font-weight:500; padding:7px 16px; border-radius:20px; opacity:0; transition:opacity 0.3s; z-index:100; pointer-events:none; white-space:nowrap; }
+#toast.show { opacity:1; }
 </style>
 </head>
 <body>
 
-<div id="idle-screen">
-  <div id="progress-bar-wrap"><div id="progress-bar-fill"></div></div>
+<!-- ── READER ── -->
+<div id="reader">
+  <div id="progress-bar-wrap">
+    <div id="progress-bar-fill"></div>
+    <span id="chapter-label"></span>
+  </div>
   <div id="idle-text-area"><div id="idle-text-inner"></div></div>
   <div id="taskbar">
     <div class="tb-btn-row">
-      <button class="tb-btn" id="paste-btn">Paste text</button>
-      <button class="tb-btn" id="file-btn">Upload PDF / TXT</button>
-      <input type="file" id="file-input" accept=".txt,.pdf" style="display:none;" />
+      <button class="tb-btn" id="lib-btn">&#9776; Library</button>
+      <button class="tb-btn" id="paste-btn">Paste</button>
+      <button class="tb-btn" id="file-btn">Upload</button>
+      <input type="file" id="file-input" accept=".txt,.pdf" style="display:none;"/>
     </div>
     <div class="tb-btn-row">
-      <button class="tb-btn accent" id="bookmark-btn">&#9873; Bookmark here</button>
-      <button class="tb-btn" id="clear-bm-btn">Clear bookmarks</button>
+      <button class="tb-btn accent" id="bookmark-btn">&#9873; Bookmark</button>
+      <button class="tb-btn" id="clear-bm-btn">Clear marks</button>
+      <button class="tb-btn" id="chapters-btn" style="display:none;">Chapters</button>
     </div>
-    <div id="bookmark-nav"><span id="bm-label">Jump to:</span></div>
+    <div id="bookmark-nav"><span class="nav-label">Bookmarks:</span></div>
+    <div id="chapter-nav"><span class="nav-label">Chapters:</span></div>
     <div class="tb-row">
       <span class="tb-label">Speed</span>
-      <input type="range" id="wpm-slider" min="100" max="1000" step="10" value="300" />
+      <input type="range" id="wpm-slider" min="100" max="1000" step="10" value="300"/>
       <span class="tb-val" id="wpm-out">300 wpm</span>
     </div>
     <div class="tb-row">
       <span class="tb-label">Font size</span>
-      <input type="range" id="font-slider" min="20" max="60" step="2" value="42" />
+      <input type="range" id="font-slider" min="20" max="60" step="2" value="42"/>
       <span class="tb-val" id="font-out">42px</span>
     </div>
     <div class="tb-row">
@@ -122,17 +171,18 @@
     </div>
     <div class="tb-row">
       <div class="toggles">
-        <label class="tog-label"><input type="checkbox" id="smart-cb" checked /> Smart mode</label>
-        <label class="tog-label"><input type="checkbox" id="orp-cb" checked /> ORP</label>
-        <label class="tog-label"><input type="checkbox" id="guide-cb" checked /> Guide lines</label>
+        <label class="tog-label"><input type="checkbox" id="smart-cb" checked/> Smart</label>
+        <label class="tog-label"><input type="checkbox" id="orp-cb" checked/> ORP</label>
+        <label class="tog-label"><input type="checkbox" id="guide-cb" checked/> Guides</label>
       </div>
     </div>
-    <div class="hint">hold to read · slide left/right to adjust speed · double-tap to lock</div>
+    <div class="hint">hold to read · slide to adjust speed · double-tap to lock</div>
   </div>
 </div>
 
+<!-- ── ACTIVE RSVP ── -->
 <div id="active-screen">
-  <div id="lock-indicator"><div id="lock-dot"></div><span id="lock-label">locked — double-tap to exit</span></div>
+  <div id="lock-indicator"><div id="lock-dot"></div><span>locked — double-tap to exit</span></div>
   <div id="rsvp-box">
     <div class="rsvp-guide" id="rsvp-line-top"></div>
     <div id="rsvp-tick-top"></div>
@@ -145,13 +195,40 @@
   <div id="speed-hud"><span id="speed-arrow"></span><span id="speed-hud-val"></span></div>
 </div>
 
-<div id="paste-modal">
-  <div id="paste-inner">
-    <h3>Paste your text</h3>
-    <textarea id="paste-textarea" placeholder="Paste or type text here..."></textarea>
+<!-- ── LIBRARY SCREEN ── -->
+<div id="library-screen">
+  <div id="lib-header">
+    <h2 id="lib-title">Library</h2>
+    <button id="lib-close">Done</button>
+  </div>
+  <div id="lib-tabs">
+    <div class="lib-tab active" data-tab="texts">Texts</div>
+    <div class="lib-tab" data-tab="history">History</div>
+  </div>
+  <div id="lib-body">
+    <div id="lib-tab-texts">
+      <div id="lib-add-row" style="margin-top:4px;">
+        <button class="lib-add-btn" id="lib-paste-btn">+ Paste text</button>
+        <button class="lib-add-btn" id="lib-upload-btn">+ Upload file</button>
+        <input type="file" id="lib-file-input" accept=".txt,.pdf" style="display:none;"/>
+      </div>
+      <div id="lib-list"></div>
+    </div>
+    <div id="lib-tab-history" style="display:none;">
+      <div id="hist-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── PASTE MODAL ── -->
+<div class="modal-overlay" id="paste-modal">
+  <div class="modal-sheet" id="paste-inner">
+    <h3>Add to library</h3>
+    <input class="modal-input" id="paste-title" placeholder="Title (e.g. Article name, Book chapter)"/>
+    <textarea class="modal-textarea" id="paste-textarea" placeholder="Paste text here..."></textarea>
     <div class="modal-btn-row">
       <button class="modal-btn cancel" id="paste-cancel">Cancel</button>
-      <button class="modal-btn primary" id="paste-confirm">Load text</button>
+      <button class="modal-btn primary" id="paste-confirm">Save & Read</button>
     </div>
   </div>
 </div>
@@ -163,59 +240,120 @@
 pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
 // ── Storage keys ──
-const SK_PROGRESS='sr_progress', SK_BOOKMARKS='sr_bookmarks';
+const SK_LIBRARY  = 'sr_library';   // [{id,title,text,idx,bookmarks,addedAt,lastRead,totalWordsRead}]
+const SK_HISTORY  = 'sr_history';   // [{id,title,date,wordsRead,duration,wpm}]
+const SK_SETTINGS = 'sr_settings';  // {theme,wpm,fontSize,smart,orp,guides}
+const SK_CURRENT  = 'sr_current';   // id of last open text
 
 const themes={
-  black:    {bg:'#0a0a0a',text:'#e8e8e8',orp:'#e03020',guide:'#e8e8e8',taskBg:'rgba(10,10,10,0.97)', border:'rgba(255,255,255,0.12)',btnColor:'#e8e8e8',lockBorder:'rgba(255,255,255,0.2)',lockText:'#e8e8e8',hudColor:'#e8e8e8'},
-  charcoal: {bg:'#2b2b2b',text:'#e8e8e8',orp:'#e03020',guide:'#e8e8e8',taskBg:'rgba(35,35,35,0.97)', border:'rgba(255,255,255,0.12)',btnColor:'#e8e8e8',lockBorder:'rgba(255,255,255,0.2)',lockText:'#e8e8e8',hudColor:'#e8e8e8'},
-  parchment:{bg:'#f5f0e8',text:'#2c1f0e',orp:'#cc2200',guide:'#2c1f0e',taskBg:'rgba(245,240,232,0.97)',border:'rgba(0,0,0,0.12)',btnColor:'#2c1f0e',lockBorder:'rgba(0,0,0,0.2)',lockText:'#2c1f0e',hudColor:'#2c1f0e'},
-  white:    {bg:'#ffffff',text:'#1a1a1a',orp:'#cc2200',guide:'#1a1a1a',taskBg:'rgba(255,255,255,0.97)',border:'rgba(0,0,0,0.12)',btnColor:'#1a1a1a',lockBorder:'rgba(0,0,0,0.2)',lockText:'#1a1a1a',hudColor:'#1a1a1a'},
+  black:    {bg:'#0a0a0a',text:'#e8e8e8',orp:'#e03020',guide:'#e8e8e8',taskBg:'rgba(10,10,10,0.97)', border:'rgba(255,255,255,0.12)',btnColor:'#e8e8e8',lockBorder:'rgba(255,255,255,0.2)',lockText:'#e8e8e8',hudColor:'#e8e8e8',libBg:'#0a0a0a',libCard:'rgba(255,255,255,0.04)',libBorder:'rgba(255,255,255,0.1)'},
+  charcoal: {bg:'#2b2b2b',text:'#e8e8e8',orp:'#e03020',guide:'#e8e8e8',taskBg:'rgba(35,35,35,0.97)', border:'rgba(255,255,255,0.12)',btnColor:'#e8e8e8',lockBorder:'rgba(255,255,255,0.2)',lockText:'#e8e8e8',hudColor:'#e8e8e8',libBg:'#2b2b2b',libCard:'rgba(255,255,255,0.05)',libBorder:'rgba(255,255,255,0.1)'},
+  parchment:{bg:'#f5f0e8',text:'#2c1f0e',orp:'#cc2200',guide:'#2c1f0e',taskBg:'rgba(245,240,232,0.97)',border:'rgba(0,0,0,0.12)',  btnColor:'#2c1f0e',lockBorder:'rgba(0,0,0,0.2)',  lockText:'#2c1f0e',hudColor:'#2c1f0e',libBg:'#f5f0e8',libCard:'rgba(0,0,0,0.03)',libBorder:'rgba(0,0,0,0.1)'},
+  white:    {bg:'#ffffff',text:'#1a1a1a',orp:'#cc2200',guide:'#1a1a1a',taskBg:'rgba(255,255,255,0.97)',border:'rgba(0,0,0,0.12)',  btnColor:'#1a1a1a',lockBorder:'rgba(0,0,0,0.2)',  lockText:'#1a1a1a',hudColor:'#1a1a1a',libBg:'#ffffff',libCard:'rgba(0,0,0,0.02)',libBorder:'rgba(0,0,0,0.1)'},
 };
 
-let currentTheme='black',words=[],wordEls=[],idx=0;
-let holding=false,locked=false,rsvpTimer=null;
-let lastTapTime=0,lastTouchTime=0;
-let nudgeX=null,nudgeRafId=null,currentWpm=300;
-let bookmarks=[],currentTextRaw='';
-const DTAP=280,WPM_MIN=100,WPM_MAX=1000,DEAD_ZONE=0.25;
+let currentTheme='black', words=[], wordEls=[], idx=0;
+let holding=false, locked=false, rsvpTimer=null;
+let lastTapTime=0, lastTouchTime=0;
+let nudgeX=null, nudgeRafId=null, currentWpm=300;
+let bookmarks=[], chapters=[], currentTextId=null;
+let sessionStart=null, sessionWordsRead=0;
+const DTAP=280, WPM_MIN=100, WPM_MAX=1000, DEAD_ZONE=0.25;
 
 const $=id=>document.getElementById(id);
-const idleScreen=$('idle-screen'),activeScreen=$('active-screen');
-const idleTextArea=$('idle-text-area'),idleTextInner=$('idle-text-inner');
-const progressFill=$('progress-bar-fill');
-const wpmSlider=$('wpm-slider'),wpmOut=$('wpm-out');
-const fontSlider=$('font-slider'),fontOut=$('font-out');
-const smartCb=$('smart-cb'),orpCb=$('orp-cb'),guideCb=$('guide-cb');
-const rsvpBefore=$('rsvp-before'),rsvpOrp=$('rsvp-orp'),rsvpAfter=$('rsvp-after');
-const rsvpWordInner=$('rsvp-word-inner'),rsvpWordWrap=$('rsvp-word-wrap');
-const rsvpLineTop=$('rsvp-line-top'),rsvpLineBot=$('rsvp-line-bot');
-const rsvpTickTop=$('rsvp-tick-top'),rsvpTickBot=$('rsvp-tick-bot');
-const lockIndicator=$('lock-indicator'),lockLabel=$('lock-label'),taskbar=$('taskbar');
-const pasteModal=$('paste-modal'),pasteInner=$('paste-inner'),pasteTextarea=$('paste-textarea');
-const speedHud=$('speed-hud'),speedArrow=$('speed-arrow'),speedHudVal=$('speed-hud-val');
-const bookmarkNav=$('bookmark-nav'),bmLabel=$('bm-label'),toastEl=$('toast');
+const reader=$('reader'), activeScreen=$('active-screen'), libraryScreen=$('library-screen');
+const idleTextArea=$('idle-text-area'), idleTextInner=$('idle-text-inner');
+const progressFill=$('progress-bar-fill'), chapterLabel=$('chapter-label');
+const wpmSlider=$('wpm-slider'), wpmOut=$('wpm-out');
+const fontSlider=$('font-slider'), fontOut=$('font-out');
+const smartCb=$('smart-cb'), orpCb=$('orp-cb'), guideCb=$('guide-cb');
+const rsvpBefore=$('rsvp-before'), rsvpOrp=$('rsvp-orp'), rsvpAfter=$('rsvp-after');
+const rsvpWordInner=$('rsvp-word-inner'), rsvpWordWrap=$('rsvp-word-wrap');
+const rsvpLineTop=$('rsvp-line-top'), rsvpLineBot=$('rsvp-line-bot');
+const rsvpTickTop=$('rsvp-tick-top'), rsvpTickBot=$('rsvp-tick-bot');
+const lockIndicator=$('lock-indicator'), taskbar=$('taskbar');
+const speedHud=$('speed-hud'), speedArrow=$('speed-arrow'), speedHudVal=$('speed-hud-val');
+const bookmarkNav=$('bookmark-nav'), chapterNav=$('chapter-nav'), toastEl=$('toast');
+const pasteModal=$('paste-modal'), pasteInner=$('paste-inner');
+const pasteTitle=$('paste-title'), pasteTextarea=$('paste-textarea');
 
 // ── Toast ──
 let toastTimer=null;
-function showToast(msg){toastEl.textContent=msg;toastEl.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>toastEl.classList.remove('show'),1800);}
+function showToast(msg){toastEl.textContent=msg;toastEl.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>toastEl.classList.remove('show'),2000);}
 
-// ── Hash ──
-function hashText(text){let h=0;for(let i=0;i<Math.min(text.length,500);i++){h=(h*31+text.charCodeAt(i))>>>0;}return h.toString(36);}
+// ── Library storage ──
+function getLibrary(){try{return JSON.parse(localStorage.getItem(SK_LIBRARY)||'[]');}catch(e){return[];}}
+function saveLibrary(lib){try{localStorage.setItem(SK_LIBRARY,JSON.stringify(lib));}catch(e){}}
+function getHistory(){try{return JSON.parse(localStorage.getItem(SK_HISTORY)||'[]');}catch(e){return[];}}
+function saveHistory(h){try{localStorage.setItem(SK_HISTORY,JSON.stringify(h));}catch(e){}}
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2);}
 
-// ── Persistence ──
-function saveProgress(){if(!words.length)return;try{localStorage.setItem(SK_PROGRESS,JSON.stringify({hash:hashText(currentTextRaw),text:currentTextRaw,idx}));}catch(e){}}
-function saveBookmarks(){try{localStorage.setItem(SK_BOOKMARKS,JSON.stringify({hash:hashText(currentTextRaw),marks:bookmarks}));}catch(e){}}
-function loadPersisted(){
-  try{
-    const p=JSON.parse(localStorage.getItem(SK_PROGRESS)||'null');
-    if(p&&p.text){
-      currentTextRaw=p.text;words=tokenize(p.text);idx=Math.min(p.idx||0,words.length-1);
-      const b=JSON.parse(localStorage.getItem(SK_BOOKMARKS)||'null');
-      bookmarks=(b&&b.hash===hashText(currentTextRaw))?b.marks:[];
-      buildIdleText(words);showToast('Progress restored — word '+(idx+1)+' of '+words.length);return true;
-    }
-  }catch(e){}return false;
+function saveCurrentEntry(){
+  if(!currentTextId||!words.length)return;
+  const lib=getLibrary();const i=lib.findIndex(e=>e.id===currentTextId);
+  if(i<0)return;
+  lib[i].idx=idx;lib[i].bookmarks=bookmarks;lib[i].lastRead=Date.now();
+  saveLibrary(lib);
+  try{localStorage.setItem(SK_CURRENT,currentTextId);}catch(e){}
 }
+
+function logSession(){
+  if(!sessionStart||!currentTextId||sessionWordsRead<5)return;
+  const dur=Math.round((Date.now()-sessionStart)/1000);
+  const lib=getLibrary();const entry=lib.find(e=>e.id===currentTextId);
+  const hist=getHistory();
+  hist.unshift({id:uid(),textId:currentTextId,title:entry?entry.title:'Unknown',date:Date.now(),wordsRead:sessionWordsRead,duration:dur,wpm:Math.round((sessionWordsRead/(dur||1))*60)});
+  if(hist.length>200)hist.splice(200);
+  saveHistory(hist);
+  // update totalWordsRead on entry
+  if(entry){const li=lib.findIndex(e=>e.id===currentTextId);lib[li].totalWordsRead=(lib[li].totalWordsRead||0)+sessionWordsRead;saveLibrary(lib);}
+  sessionStart=null;sessionWordsRead=0;
+}
+
+// ── Settings ──
+function saveSettings(){
+  try{localStorage.setItem(SK_SETTINGS,JSON.stringify({theme:currentTheme,wpm:parseInt(wpmSlider.value),fontSize:parseInt(fontSlider.value),smart:smartCb.checked,orp:orpCb.checked,guides:guideCb.checked}));}catch(e){}
+}
+function loadSettings(){
+  try{
+    const s=JSON.parse(localStorage.getItem(SK_SETTINGS)||'null');
+    if(!s)return;
+    if(s.theme)currentTheme=s.theme;
+    if(s.wpm){wpmSlider.value=s.wpm;currentWpm=s.wpm;wpmOut.textContent=s.wpm+' wpm';}
+    if(s.fontSize){fontSlider.value=s.fontSize;fontOut.textContent=s.fontSize+'px';rsvpWordInner.style.fontSize=s.fontSize+'px';}
+    if(s.smart!==undefined)smartCb.checked=s.smart;
+    if(s.orp!==undefined)orpCb.checked=s.orp;
+    if(s.guides!==undefined)guideCb.checked=s.guides;
+  }catch(e){}
+}
+
+// ── Chapter detection ──
+function detectChapters(text){
+  const lines=text.split('\n');
+  const chaps=[];let wordIdx=0;
+  lines.forEach(line=>{
+    const trimmed=line.trim();
+    const wordCount=line.split(/\s+/).filter(w=>w.length>0).flatMap(w=>w.split('-').filter(p=>p.length>0)).length;
+    const isHeading=trimmed.length>0&&trimmed.length<80&&(
+      /^#{1,3}\s/.test(trimmed)||
+      /^(chapter|part|section|introduction|conclusion|epilogue|prologue|preface)\b/i.test(trimmed)||
+      (trimmed===trimmed.toUpperCase()&&trimmed.length>3&&/[A-Z]/.test(trimmed))||
+      /^\d+[\.\)]\s+[A-Z]/.test(trimmed)||
+      /^[IVXLCDM]+[\.\)]\s/i.test(trimmed)
+    );
+    if(isHeading&&wordIdx>0)chaps.push({title:trimmed.replace(/^#+\s*/,''),wordIdx});
+    wordIdx+=wordCount;
+  });
+  return chaps;
+}
+
+// ── Helpers ──
+function tokenize(text){return text.split(/\s+/).filter(w=>w.length>0).flatMap(w=>w.split('-').filter(p=>p.length>0));}
+function getORPIndex(word){const len=word.replace(/[^a-zA-Z]/g,'').length;if(len<=2)return 0;if(len<=5)return 1;if(len<=9)return 2;if(len<=13)return 3;return 4;}
+function getORPCharPos(word){const oi=getORPIndex(word);let cc=-1;for(let i=0;i<word.length;i++){if(/[a-zA-Z]/.test(word[i])){cc++;if(cc===oi)return i;}}return -1;}
+function escHtml(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function fmtDate(ts){return new Date(ts).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});}
+function fmtDur(sec){return sec<60?sec+'s':Math.round(sec/60)+'m';}
 
 // ── Stop RSVP ──
 function stopRSVP(){clearTimeout(rsvpTimer);rsvpTimer=null;}
@@ -238,34 +376,59 @@ function updateNudge(x){nudgeX=x;}
 function stopNudge(){nudgeX=null;cancelAnimationFrame(nudgeRafId);nudgeRafId=null;speedHud.classList.remove('visible');}
 
 // ── Theme ──
-function applyTheme(name){
+function applyTheme(name,save=true){
   currentTheme=name;const t=themes[name];
   document.body.style.background=t.bg;document.documentElement.style.background=t.bg;
-  idleScreen.style.background=t.bg;activeScreen.style.background=t.bg;
+  reader.style.background=t.bg;activeScreen.style.background=t.bg;
   idleTextInner.style.color=t.text;taskbar.style.background=t.taskBg;taskbar.style.borderTopColor=t.border;
-  pasteInner.style.background=t.taskBg;pasteTextarea.style.color=t.text;
-  pasteInner.querySelector('h3').style.color=t.text;
-  document.querySelectorAll('.tb-label,.tb-val,.tog-label,.hint,#bm-label').forEach(el=>el.style.color=t.text);
+  pasteInner.style.background=t.taskBg;pasteTextarea.style.color=t.text;pasteTitle.style.color=t.text;
+  document.querySelectorAll('.modal-sheet h3').forEach(el=>el.style.color=t.text);
+  document.querySelectorAll('.modal-input,.modal-textarea').forEach(el=>el.style.color=t.text);
+  document.querySelectorAll('.tb-label,.tb-val,.tog-label,.hint,.nav-label').forEach(el=>el.style.color=t.text);
   document.querySelectorAll('.tb-btn').forEach(el=>{el.style.color=t.btnColor;el.style.borderColor=t.border;});
-  $('bookmark-btn').style.color=null;$('bookmark-btn').style.borderColor=null;
+  $('bookmark-btn').style.cssText='';$('bookmark-btn').classList.add('accent');
   document.querySelectorAll('.modal-btn.cancel').forEach(el=>el.style.color=t.text);
   rsvpLineTop.style.background=rsvpLineBot.style.background=t.guide;
   rsvpTickTop.style.background=rsvpTickBot.style.background=t.guide;
-  rsvpBefore.style.color=rsvpAfter.style.color=t.text;rsvpOrp.style.color=t.orp;
-  lockIndicator.style.borderColor=t.lockBorder;lockLabel.style.color=t.lockText;
+  $('rsvp-before').style.color=$('rsvp-after').style.color=t.text;$('rsvp-orp').style.color=t.orp;
+  lockIndicator.style.borderColor=t.lockBorder;
   speedHudVal.style.color=speedArrow.style.color=t.hudColor;
+  libraryScreen.style.background=t.libBg;
+  $('lib-header').style.borderBottomColor=t.libBorder;
+  $('lib-tabs').style.borderBottomColor=t.libBorder;
+  $('lib-header').querySelector('h2').style.color=t.text;
+  $('lib-close').style.color=t.btnColor;$('lib-close').style.borderColor=t.border;
+  document.querySelectorAll('.lib-tab').forEach(el=>el.style.color=t.text);
+  document.querySelectorAll('.lib-add-btn').forEach(el=>{el.style.color=t.btnColor;el.style.borderColor=t.border;});
   document.querySelectorAll('.swatch').forEach(s=>s.classList.toggle('active',s.dataset.theme===name));
   if(words.length)buildIdleText(words);
+  if(save)saveSettings();
 }
 document.querySelectorAll('.swatch').forEach(s=>s.addEventListener('click',e=>{e.stopPropagation();applyTheme(s.dataset.theme);}));
 
-// ── Helpers ──
-function tokenize(text){return text.split(/\s+/).filter(w=>w.length>0).flatMap(w=>w.split('-').filter(p=>p.length>0));}
-function getORPIndex(word){const len=word.replace(/[^a-zA-Z]/g,'').length;if(len<=2)return 0;if(len<=5)return 1;if(len<=9)return 2;if(len<=13)return 3;return 4;}
-function getORPCharPos(word){const oi=getORPIndex(word);let cc=-1;for(let i=0;i<word.length;i++){if(/[a-zA-Z]/.test(word[i])){cc++;if(cc===oi)return i;}}return -1;}
-function escHtml(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+// ── Chapter UI ──
+function updateChapterLabel(){
+  if(!chapters.length){chapterLabel.textContent='';return;}
+  const cur=chapters.filter(c=>c.wordIdx<=idx);
+  chapterLabel.textContent=cur.length?cur[cur.length-1].title:'';
+}
+function renderChapterNav(){
+  Array.from(chapterNav.querySelectorAll('.ch-chip')).forEach(el=>el.remove());
+  if(!chapters.length){chapterNav.classList.remove('visible');$('chapters-btn').style.display='none';return;}
+  $('chapters-btn').style.display='';
+}
+function openChapterNav(){
+  Array.from(chapterNav.querySelectorAll('.ch-chip')).forEach(el=>el.remove());
+  chapters.forEach((ch,n)=>{
+    const chip=document.createElement('div');chip.className='ch-chip';
+    chip.textContent='Ch '+(n+1)+': '+ch.title.slice(0,20)+(ch.title.length>20?'…':'');
+    chip.addEventListener('click',e=>{e.stopPropagation();idx=ch.wordIdx;highlightIdleWord(idx);chapterNav.classList.remove('visible');saveCurrentEntry();});
+    chapterNav.appendChild(chip);
+  });
+  chapterNav.classList.toggle('visible');
+}
 
-// ── Bookmarks ──
+// ── Bookmark UI ──
 function renderBookmarkNav(){
   Array.from(bookmarkNav.querySelectorAll('.bm-chip')).forEach(el=>el.remove());
   if(!bookmarks.length){bookmarkNav.classList.remove('visible');return;}
@@ -276,8 +439,8 @@ function renderBookmarkNav(){
     chip.innerHTML='#'+(n+1)+' <span style="opacity:0.7">'+pct+'%</span><span class="bm-x">×</span>';
     chip.addEventListener('click',e=>{
       e.stopPropagation();
-      if(e.target.classList.contains('bm-x')){bookmarks=bookmarks.filter(x=>x!==bi);saveBookmarks();renderBookmarkNav();markBookmarkedWords();showToast('Bookmark removed');}
-      else{idx=bi;highlightIdleWord(idx);showToast('Jumped to bookmark #'+(n+1));}
+      if(e.target.classList.contains('bm-x')){bookmarks=bookmarks.filter(x=>x!==bi);saveCurrentEntry();renderBookmarkNav();markBookmarkedWords();showToast('Bookmark removed');}
+      else{idx=bi;highlightIdleWord(idx);saveCurrentEntry();}
     });
     bookmarkNav.appendChild(chip);
   });
@@ -287,18 +450,21 @@ function markBookmarkedWords(){wordEls.forEach((el,i)=>el.classList.toggle('book
 // ── Build idle text ──
 function buildIdleText(ws){
   const t=themes[currentTheme];idleTextInner.innerHTML='';wordEls=[];
-  ws.forEach(w=>{
+  const chapterStarts=new Set(chapters.map(c=>c.wordIdx));
+  ws.forEach((w,i)=>{
     const span=document.createElement('span');span.className='idle-word';span.style.color=t.text;
+    if(chapterStarts.has(i))span.classList.add('chapter-start');
     if(orpCb.checked){const op=getORPCharPos(w);if(op>=0){span.innerHTML=escHtml(w.slice(0,op))+'<span style="color:'+t.orp+'">'+escHtml(w[op])+'</span>'+escHtml(w.slice(op+1));}else{span.textContent=w;}}
     else{span.textContent=w;}
     idleTextInner.appendChild(span);idleTextInner.appendChild(document.createTextNode(' '));wordEls.push(span);
   });
-  markBookmarkedWords();renderBookmarkNav();highlightIdleWord(idx);
+  markBookmarkedWords();renderBookmarkNav();renderChapterNav();highlightIdleWord(idx);
 }
+
 function highlightIdleWord(i){
   wordEls.forEach((el,j)=>el.style.opacity=j===i?'1':'0.22');
   progressFill.style.width=(words.length?Math.round((i/words.length)*100):0)+'%';
-  scrollToWord(i);
+  updateChapterLabel();scrollToWord(i);
 }
 function scrollToWord(i){
   if(!wordEls[i])return;
@@ -315,25 +481,25 @@ idleTextArea.addEventListener('wheel',e=>{
   if(steps!==0){wheelAccum-=steps*60;idx=Math.max(0,Math.min(idx+steps,words.length-1));highlightIdleWord(idx);}
   clearTimeout(wheelTimer);wheelTimer=setTimeout(()=>{wheelAccum=0;},200);
 },{passive:false});
-let touchScrollY=null,touchScrollAccum=0;
-idleTextArea.addEventListener('touchstart',e=>{if(e.target.closest('#taskbar'))return;touchScrollY=e.touches[0].clientY;touchScrollAccum=0;},{passive:true});
+let tScrollY=null,tScrollAccum=0;
+idleTextArea.addEventListener('touchstart',e=>{if(e.target.closest('#taskbar'))return;tScrollY=e.touches[0].clientY;tScrollAccum=0;},{passive:true});
 idleTextArea.addEventListener('touchmove',e=>{
-  if(touchScrollY===null)return;e.preventDefault();
-  const dy=touchScrollY-e.touches[0].clientY;touchScrollAccum+=dy;touchScrollY=e.touches[0].clientY;
-  const steps=Math.trunc(touchScrollAccum/28);
-  if(steps!==0){touchScrollAccum-=steps*28;idx=Math.max(0,Math.min(idx+steps,words.length-1));highlightIdleWord(idx);}
+  if(tScrollY===null)return;e.preventDefault();
+  const dy=tScrollY-e.touches[0].clientY;tScrollAccum+=dy;tScrollY=e.touches[0].clientY;
+  const steps=Math.trunc(tScrollAccum/28);
+  if(steps!==0){tScrollAccum-=steps*28;idx=Math.max(0,Math.min(idx+steps,words.length-1));highlightIdleWord(idx);}
 },{passive:false});
-idleTextArea.addEventListener('touchend',()=>{touchScrollY=null;touchScrollAccum=0;});
+idleTextArea.addEventListener('touchend',()=>{tScrollY=null;tScrollAccum=0;});
 
 // ── RSVP ──
 function positionRSVP(word){
   const t=themes[currentTheme];const op=getORPCharPos(word);
-  if(!orpCb.checked||op===-1){rsvpBefore.textContent=word;rsvpOrp.textContent='';rsvpAfter.textContent='';rsvpWordInner.style.left='50%';rsvpWordInner.style.transform='translateX(-50%)';return;}
-  rsvpBefore.textContent=word.slice(0,op);rsvpOrp.textContent=word[op];rsvpAfter.textContent=word.slice(op+1);
-  rsvpBefore.style.color=rsvpAfter.style.color=t.text;rsvpOrp.style.color=t.orp;
+  if(!orpCb.checked||op===-1){$('rsvp-before').textContent=word;$('rsvp-orp').textContent='';$('rsvp-after').textContent='';rsvpWordInner.style.left='50%';rsvpWordInner.style.transform='translateX(-50%)';return;}
+  $('rsvp-before').textContent=word.slice(0,op);$('rsvp-orp').textContent=word[op];$('rsvp-after').textContent=word.slice(op+1);
+  $('rsvp-before').style.color=$('rsvp-after').style.color=t.text;$('rsvp-orp').style.color=t.orp;
   const fs=parseInt(fontSlider.value);const cv=document.createElement('canvas');const ctx=cv.getContext('2d');
   ctx.font='500 '+fs+'px "Courier New",monospace';
-  const bw=ctx.measureText(rsvpBefore.textContent).width;const ow=ctx.measureText(rsvpOrp.textContent).width;
+  const bw=ctx.measureText($('rsvp-before').textContent).width;const ow=ctx.measureText($('rsvp-orp').textContent).width;
   const boxW=rsvpWordWrap.getBoundingClientRect().width||window.innerWidth*0.9;const anchor=boxW*0.5;
   rsvpWordInner.style.left=(anchor-bw-ow/2)+'px';rsvpWordInner.style.transform='none';
   rsvpTickTop.style.left=rsvpTickBot.style.left=anchor+'px';
@@ -346,23 +512,24 @@ function getSmartDelay(word){
 }
 function rsvpTick(){
   if(!holding&&!locked)return;
-  if(idx>=words.length){stopRSVP();holding=false;locked=false;stopNudge();saveProgress();showIdle();return;}
+  if(idx>=words.length){stopRSVP();holding=false;locked=false;stopNudge();logSession();saveCurrentEntry();showIdle();return;}
   positionRSVP(words[idx]);highlightIdleWord(idx);
+  sessionWordsRead++;
   const delay=getSmartDelay(words[idx]);idx++;
   rsvpTimer=setTimeout(rsvpTick,delay);
 }
 
 // ── Mode switching ──
-function showActive(){activeScreen.style.background=themes[currentTheme].bg;idleScreen.classList.add('hidden');activeScreen.classList.add('visible');}
-function showIdle(){activeScreen.classList.remove('visible');idleScreen.classList.remove('hidden');lockIndicator.classList.remove('visible');}
-function enterLock(){locked=true;if(idx>=words.length)idx=0;showActive();lockIndicator.classList.add('visible');stopRSVP();rsvpTick();}
-function exitLock(){stopRSVP();locked=false;saveProgress();showIdle();}
-function startHold(x){if(!words.length)return;if(idx>=words.length)idx=0;holding=true;showActive();stopRSVP();currentWpm=parseInt(wpmSlider.value);startNudge(x);rsvpTick();}
-function stopHold(){stopRSVP();stopNudge();holding=false;saveProgress();showIdle();}
+function showIdle(){activeScreen.classList.remove('visible');reader.classList.remove('hidden');lockIndicator.classList.remove('visible');}
+function showActive(){activeScreen.style.background=themes[currentTheme].bg;reader.classList.add('hidden');activeScreen.classList.add('visible');}
+function enterLock(){locked=true;if(idx>=words.length)idx=0;showActive();lockIndicator.classList.add('visible');stopRSVP();sessionStart=Date.now();rsvpTick();}
+function exitLock(){stopRSVP();locked=false;logSession();saveCurrentEntry();showIdle();}
+function startHold(x){if(!words.length)return;if(idx>=words.length)idx=0;holding=true;showActive();stopRSVP();currentWpm=parseInt(wpmSlider.value);startNudge(x);if(!sessionStart)sessionStart=Date.now();rsvpTick();}
+function stopHold(){stopRSVP();stopNudge();holding=false;logSession();saveCurrentEntry();showIdle();}
 
 // ── Input ──
 document.addEventListener('mousedown',e=>{
-  if(e.target.closest('#taskbar')||e.target.closest('#paste-modal'))return;
+  if(e.target.closest('#taskbar')||e.target.closest('.modal-overlay')||e.target.closest('#library-screen'))return;
   const now=Date.now();const gap=now-lastTapTime;lastTapTime=now;
   if(gap<DTAP){lastTapTime=0;if(locked){exitLock();}else{stopHold();enterLock();}return;}
   if(locked)return;startHold(e.clientX);
@@ -371,7 +538,7 @@ document.addEventListener('mousemove',e=>{if(holding)updateNudge(e.clientX);});
 document.addEventListener('mouseup',()=>{if(locked)return;if(!holding)return;stopHold();});
 document.addEventListener('mouseleave',()=>{if(locked)return;if(!holding)return;stopHold();});
 document.addEventListener('touchstart',e=>{
-  if(e.target.closest('#taskbar')||e.target.closest('#paste-modal'))return;
+  if(e.target.closest('#taskbar')||e.target.closest('.modal-overlay')||e.target.closest('#library-screen'))return;
   const now=Date.now();const gap=now-lastTouchTime;lastTouchTime=now;
   if(gap<DTAP){lastTouchTime=0;e.preventDefault();if(locked){exitLock();}else{stopHold();enterLock();}return;}
   if(locked)return;startHold(e.touches[0].clientX);
@@ -381,57 +548,194 @@ document.addEventListener('touchend',()=>{if(locked)return;if(!holding)return;st
 document.addEventListener('touchcancel',()=>{if(locked)return;if(!holding)return;stopHold();});
 
 // ── Controls ──
-wpmSlider.addEventListener('input',e=>{e.stopPropagation();const v=parseInt(wpmSlider.value);currentWpm=v;wpmOut.textContent=v+' wpm';});
-fontSlider.addEventListener('input',e=>{e.stopPropagation();const sz=fontSlider.value;fontOut.textContent=sz+'px';rsvpWordInner.style.fontSize=sz+'px';idleTextInner.style.fontSize=Math.max(13,Math.round(sz*0.4))+'px';});
-orpCb.addEventListener('change',()=>{if(words.length)buildIdleText(words);});
-guideCb.addEventListener('change',()=>{const v=guideCb.checked?'':'none';[rsvpLineTop,rsvpLineBot,rsvpTickTop,rsvpTickBot].forEach(el=>el.style.display=v);});
+wpmSlider.addEventListener('input',e=>{e.stopPropagation();const v=parseInt(wpmSlider.value);currentWpm=v;wpmOut.textContent=v+' wpm';saveSettings();});
+fontSlider.addEventListener('input',e=>{e.stopPropagation();const sz=fontSlider.value;fontOut.textContent=sz+'px';rsvpWordInner.style.fontSize=sz+'px';idleTextInner.style.fontSize=Math.max(13,Math.round(sz*0.4))+'px';saveSettings();});
+smartCb.addEventListener('change',saveSettings);
+orpCb.addEventListener('change',()=>{if(words.length)buildIdleText(words);saveSettings();});
+guideCb.addEventListener('change',()=>{const v=guideCb.checked?'':'none';[rsvpLineTop,rsvpLineBot,rsvpTickTop,rsvpTickBot].forEach(el=>el.style.display=v);saveSettings();});
 
 // ── Bookmarks ──
 $('bookmark-btn').addEventListener('click',e=>{
   e.stopPropagation();if(!words.length)return;
   if(bookmarks.includes(idx)){showToast('Already bookmarked here');return;}
-  bookmarks.push(idx);saveBookmarks();markBookmarkedWords();renderBookmarkNav();
-  showToast('Bookmark added at '+Math.round((idx/words.length)*100)+'%');
+  bookmarks.push(idx);saveCurrentEntry();markBookmarkedWords();renderBookmarkNav();
+  showToast('Bookmark saved at '+Math.round((idx/words.length)*100)+'%');
 });
 $('clear-bm-btn').addEventListener('click',e=>{
-  e.stopPropagation();if(!bookmarks.length){showToast('No bookmarks to clear');return;}
-  bookmarks=[];saveBookmarks();markBookmarkedWords();renderBookmarkNav();showToast('Bookmarks cleared');
+  e.stopPropagation();if(!bookmarks.length){showToast('No bookmarks');return;}
+  bookmarks=[];saveCurrentEntry();markBookmarkedWords();renderBookmarkNav();showToast('Bookmarks cleared');
 });
+$('chapters-btn').addEventListener('click',e=>{e.stopPropagation();openChapterNav();});
 
-// ── Load ──
-function loadWords(raw){
-  currentTextRaw=raw;words=tokenize(raw);idx=0;bookmarks=[];
-  try{const b=JSON.parse(localStorage.getItem(SK_BOOKMARKS)||'null');if(b&&b.hash===hashText(raw))bookmarks=b.marks;}catch(e){}
-  buildIdleText(words);saveProgress();
+// ── Load text into reader ──
+function loadEntry(entry){
+  currentTextId=entry.id;
+  words=tokenize(entry.text);
+  idx=Math.min(entry.idx||0,words.length-1);
+  bookmarks=entry.bookmarks||[];
+  chapters=detectChapters(entry.text);
+  sessionStart=null;sessionWordsRead=0;
+  buildIdleText(words);
+  try{localStorage.setItem(SK_CURRENT,entry.id);}catch(e){}
 }
 
-$('paste-btn').addEventListener('click',e=>{e.stopPropagation();pasteModal.classList.add('open');pasteTextarea.focus();});
+// ── Add to library ──
+function addToLibrary(title,text){
+  const lib=getLibrary();
+  const existing=lib.find(e=>e.title===title);
+  if(existing){existing.text=text;existing.lastRead=Date.now();saveLibrary(lib);return existing;}
+  const entry={id:uid(),title,text,idx:0,bookmarks:[],addedAt:Date.now(),lastRead:null,totalWordsRead:0};
+  lib.unshift(entry);saveLibrary(lib);return entry;
+}
+
+// ── Library screen ──
+function openLibrary(){
+  renderLibrary();
+  libraryScreen.classList.add('visible');
+}
+function closeLibrary(){libraryScreen.classList.remove('visible');}
+
+function renderLibrary(){
+  const t=themes[currentTheme];
+  const lib=getLibrary();const list=$('lib-list');list.innerHTML='';
+  if(!lib.length){list.innerHTML='<div class="lib-empty">No saved texts yet.<br>Paste or upload something to get started.</div>';return;}
+  lib.forEach(entry=>{
+    const pct=entry.text?Math.round((entry.idx/Math.max(1,tokenize(entry.text).length))*100):0;
+    const card=document.createElement('div');card.className='lib-card'+(entry.id===currentTextId?' active-text':'');
+    card.style.background=t.libCard;card.style.borderColor=entry.id===currentTextId?'var(--accent)':t.libBorder;
+    card.style.color=t.text;
+    const wc=entry.text?tokenize(entry.text).length:0;
+    card.innerHTML=`
+      <div class="lib-card-title" style="color:${t.text}">${escHtml(entry.title)}</div>
+      <div class="lib-card-meta">
+        <span>${wc.toLocaleString()} words</span>
+        <span>${pct}% read</span>
+        ${entry.lastRead?'<span>Last read '+fmtDate(entry.lastRead)+'</span>':'<span>Never read</span>'}
+      </div>
+      <div class="lib-card-progress"><div class="lib-card-progress-fill" style="width:${pct}%"></div></div>
+      <button class="lib-card-del">×</button>`;
+    card.querySelector('.lib-card-del').addEventListener('click',e=>{
+      e.stopPropagation();
+      if(!confirm('Delete "'+entry.title+'"?'))return;
+      const lib2=getLibrary().filter(x=>x.id!==entry.id);saveLibrary(lib2);
+      if(entry.id===currentTextId)currentTextId=null;
+      renderLibrary();showToast('Deleted');
+    });
+    card.addEventListener('click',()=>{loadEntry(entry);closeLibrary();showToast('Opened: '+entry.title);});
+    list.appendChild(card);
+  });
+}
+
+function renderHistory(){
+  const t=themes[currentTheme];
+  const hist=getHistory();const list=$('hist-list');list.innerHTML='';
+  if(!hist.length){list.innerHTML='<div class="lib-empty">No reading history yet.<br>Start reading to track sessions.</div>';return;}
+  hist.forEach(h=>{
+    const card=document.createElement('div');card.className='hist-card';
+    card.style.borderColor=t.libBorder;card.style.color=t.text;
+    card.innerHTML=`<div class="hist-title" style="color:${t.text}">${escHtml(h.title)}</div>
+      <div class="hist-meta">
+        <span>${fmtDate(h.date)}</span>
+        <span>${h.wordsRead.toLocaleString()} words</span>
+        <span>${fmtDur(h.duration)}</span>
+        <span>${h.wpm} wpm avg</span>
+      </div>`;
+    list.appendChild(card);
+  });
+}
+
+// Tab switching
+document.querySelectorAll('.lib-tab').forEach(tab=>{
+  tab.addEventListener('click',()=>{
+    document.querySelectorAll('.lib-tab').forEach(t=>t.classList.remove('active'));
+    tab.classList.add('active');
+    $('lib-tab-texts').style.display=tab.dataset.tab==='texts'?'':'none';
+    $('lib-tab-history').style.display=tab.dataset.tab==='history'?'':'none';
+    if(tab.dataset.tab==='history')renderHistory();
+  });
+});
+
+$('lib-btn').addEventListener('click',e=>{e.stopPropagation();openLibrary();});
+$('lib-close').addEventListener('click',e=>{e.stopPropagation();closeLibrary();});
+
+// ── Paste modal ──
+function openPasteModal(){pasteTitle.value='';pasteTextarea.value='';pasteModal.classList.add('open');pasteTitle.focus();}
+$('paste-btn').addEventListener('click',e=>{e.stopPropagation();openPasteModal();});
+$('lib-paste-btn').addEventListener('click',e=>{e.stopPropagation();openPasteModal();});
 $('paste-cancel').addEventListener('click',e=>{e.stopPropagation();pasteModal.classList.remove('open');});
 $('paste-confirm').addEventListener('click',e=>{
-  e.stopPropagation();const raw=pasteTextarea.value.trim();if(!raw)return;
-  loadWords(raw);pasteModal.classList.remove('open');pasteTextarea.value='';
+  e.stopPropagation();
+  const raw=pasteTextarea.value.trim();if(!raw){showToast('Please paste some text');return;}
+  const title=pasteTitle.value.trim()||'Untitled — '+new Date().toLocaleDateString();
+  const entry=addToLibrary(title,raw);
+  loadEntry(entry);pasteModal.classList.remove('open');closeLibrary();
+  showToast('Saved: '+title);
 });
-$('file-btn').addEventListener('click',e=>{e.stopPropagation();$('file-input').click();});
-$('file-input').addEventListener('change',async e=>{
-  const file=e.target.files[0];if(!file)return;
-  if(file.name.endsWith('.txt')){loadWords(await file.text());}
+
+// ── File upload ──
+async function handleFile(file){
+  if(!file)return;
+  let text='';
+  if(file.name.endsWith('.txt')){text=await file.text();}
   else if(file.name.endsWith('.pdf')){
     try{const buf=await file.arrayBuffer();const pdf=await pdfjsLib.getDocument({data:buf}).promise;
-    let t='';for(let p=1;p<=pdf.numPages;p++){const pg=await pdf.getPage(p);const c=await pg.getTextContent();t+=c.items.map(i=>i.str).join(' ')+' ';}
-    loadWords(t.trim());}catch(err){alert('Could not read PDF. Try a .txt file.');}
+    for(let p=1;p<=pdf.numPages;p++){const pg=await pdf.getPage(p);const c=await pg.getTextContent();text+=c.items.map(i=>i.str).join(' ')+' ';}
+    text=text.trim();}catch(err){showToast('Could not read PDF');return;}
   }
-  e.target.value='';
-});
+  if(!text){showToast('No text found in file');return;}
+  const title=file.name.replace(/\.[^.]+$/,'');
+  const entry=addToLibrary(title,text);
+  loadEntry(entry);closeLibrary();showToast('Loaded: '+title);
+}
+$('file-btn').addEventListener('click',e=>{e.stopPropagation();$('file-input').click();});
+$('lib-upload-btn').addEventListener('click',e=>{e.stopPropagation();$('lib-file-input').click();});
+$('file-input').addEventListener('change',async e=>{await handleFile(e.target.files[0]);e.target.value='';});
+$('lib-file-input').addEventListener('change',async e=>{await handleFile(e.target.files[0]);e.target.value='';});
 
-// ── PWA service worker ──
-if('serviceWorker' in navigator){
-  navigator.serviceWorker.register('sw.js').catch(()=>{});
+// ── Share sheet handler ──
+function handleShareTarget(){
+  const params=new URLSearchParams(window.location.search);
+  const sharedTitle=params.get('title')||'';
+  const sharedText=params.get('text')||'';
+  const sharedUrl=params.get('url')||'';
+  if(!sharedText&&!sharedUrl)return;
+  const text=sharedText||sharedUrl;
+  const title=sharedTitle||sharedUrl||'Shared article — '+new Date().toLocaleDateString();
+  const entry=addToLibrary(title,text);
+  loadEntry(entry);showToast('Shared article loaded: '+title);
+  // clean URL
+  window.history.replaceState({},'','/speed-reader/');
 }
 
+// ── PWA ──
+if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').catch(()=>{});}
+
 // ── Init ──
-const sample="Welcome to Speed Reader. Hold the screen to begin reading. Release to pause. While holding slide left or right to change speed. Double-tap to lock reading mode. Use the bookmark button to save your position — bookmarks and progress are saved automatically and restored when you reopen the app. Scroll up or down to navigate one word at a time. Use the taskbar to adjust speed, font size, background colour, and other options. Load your own text using the Paste text or Upload buttons above.";
-applyTheme('black');
-if(!loadPersisted()){loadWords(sample);}
+loadSettings();
+applyTheme(currentTheme,false);
+
+// handle share target first
+handleShareTarget();
+
+// then restore last open text if nothing was shared
+if(!currentTextId){
+  try{
+    const lastId=localStorage.getItem(SK_CURRENT);
+    const lib=getLibrary();
+    const last=lastId?lib.find(e=>e.id===lastId):lib[0];
+    if(last){loadEntry(last);showToast('Resumed: '+last.title);}
+    else{
+      // first run — load sample
+      const sample="Welcome to Speed Reader. Hold the screen to begin reading. Release to pause. While holding slide left or right to change speed. Double-tap to lock reading mode. Open the Library to save and manage multiple texts. Bookmarks and progress are saved automatically. Use the taskbar to adjust speed, font size, and background. On iPhone you can share articles directly from Safari into this app using the share button.";
+      const entry=addToLibrary('Welcome Guide',sample);
+      loadEntry(entry);
+    }
+  }catch(e){
+    const sample="Welcome to Speed Reader. Hold anywhere to begin.";
+    const entry=addToLibrary('Welcome',sample);loadEntry(entry);
+  }
+}
+
 currentWpm=parseInt(wpmSlider.value);
 wpmOut.textContent=wpmSlider.value+' wpm';
 fontOut.textContent=fontSlider.value+'px';
